@@ -1,28 +1,39 @@
 
-module.exports.GetConfiguredClinet = function (req, clients) {
-
-        // var clients = [];
-        // clients.push(1);
-        // clients.push(2);
-        // clients.push(3);
-        // clients.push(4);
-        // return clients;
-
-
+module.exports.GetConfiguredClient = function (callback) {
         var MongoClient = require('mongodb').MongoClient;
-        var url = "mongodb://localhost:27017/";
+        
+        // Use environment variable for connection string, with fallback to localhost
+        var url = process.env.MONGODB_CONNECTION_STRING || "mongodb://localhost:27017/";
+        var dbName = process.env.MONGODB_DATABASE || "paasconfiguration";
+        
+        console.log('Attempting to connect to MongoDB with URL:', url);
+        
+        MongoClient.connect(url, { useNewUrlParser: true, useUnifiedTopology: true }, function(err, client) {
+          if (err) {
+            console.error('Error connecting to MongoDB:', err.message);
+            if (callback) callback(err, null);
+            return;
+          }
 
-        MongoClient.connect(url, function(err, db) {
-          if (err) throw err;
-
-          var dbo = db.db("paasconfiguration");
-          dbo.collection("enabledclientlist").findOne({}, function(err, clients) {
-            if (err) throw err;
-            console.log(clients);
-            return clients;
-            db.close();
-          });
-
+          try {
+            var dbo = client.db(dbName);
+            dbo.collection("enabledclientlist").findOne({}, function(err, result) {
+              if (err) {
+                console.error('Error finding data:', err.message);
+                client.close();
+                if (callback) callback(err, null);
+                return;
+              }
+              
+              console.log('Retrieved client data:', result);
+              client.close();
+              if (callback) callback(null, result);
+            });
+          } catch (error) {
+            console.error('Error accessing database:', error.message);
+            client.close();
+            if (callback) callback(error, null);
+          }
         });
 }
 
